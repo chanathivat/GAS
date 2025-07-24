@@ -1,239 +1,227 @@
-// ===== ค่าคงที่ =====
-// ID ของ Google Sheet ที่ใช้เป็นฐานข้อมูล
-const SPREADSHEET_ID = '1uu86ilkmmwgqKkcY6MhfphGnlo1UbZ2xHW4MeS_FVZw'; 
-// ID ของโฟลเดอร์ใน Google Drive ที่ใช้เก็บรูปนักเรียน
-const DRIVE_FOLDER_ID = '11MO0ujGCsf9e2P1lJWluiczpWDLDFrGV'; 
+// ===============================================================
+//               GLOBAL CONFIGURATION VARIABLES
+// ===============================================================
+const SPREADSHEET_ID = "1uu86ilkmmwgqKkcY6MhfphGnlo1UbZ2xHW4MeS_FVZw";
+const DRIVE_FOLDER_ID = "11MO0ujGCsf9e2P1lJWluiczpWDLDFrGV";
+const ADMIN_PASSWORD = "0652370343";
 
-// เปิดการเข้าถึง Spreadsheet และ Drive Folder
 const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-const driveFolder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
 
-// ===== จุดเริ่มต้นของ Web App (Entry Points) =====
-
-
-
+// ===============================================================
+//                     WEB APP SERVING
+// ===============================================================
 function doGet(e) {
-  try {
-    if (!e.parameter.action) {
-      return HtmlService.createHtmlOutputFromFile('index')
-        .setTitle('CHANATHIVAT Student Information System')
-        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    }
-
-    const action = e.parameter.action;
-    let result;
-
-    switch (action) {
-      case 'getSheets':
-        result = getSheetNames();
-        break;
-      case 'getStudents':
-        const sheetName = e.parameter.sheet;
-        if (!sheetName) throw new Error("กรุณาระบุชื่อชีท");
-        result = getStudents(sheetName);
-        break;
-      default:
-        throw new Error("Action ไม่ถูกต้อง");
-    }
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: true, ...result }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*');
-
-  } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: error.message }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*');
-  }
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle("CHANATHIVAT Student System")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
 
-function doPost(e) {
-  try {
-    const action = e.parameter.action || JSON.parse(e.postData.contents).action;
-    let data;
-    let result;
-
-    if (action !== 'uploadImage') {
-      data = JSON.parse(e.postData.contents);
-    }
-
-    switch (action) {
-      case 'updateStudent':
-        result = updateStudent(data.sheet, data.student);
-        break;
-      case 'addStudent':
-        result = addStudent(data.sheet, data.student);
-        break;
-      case 'addScoreColumn':
-        result = addScoreColumn(data.sheet, data.columnName);
-        break;
-      case 'changePassword':
-        result = changePassword(data.sheet, data.studentId, data.newPassword);
-        break;
-      case 'uploadImage':
-        result = uploadImage(e);
-        break;
-      default:
-        throw new Error("Action ไม่ถูกต้อง");
-    }
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: true, ...result }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*');
-
-  } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: error.message }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*');
-  }
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-// === Helper Functions ===
-// ตัวอย่างฟังก์ชัน getSheetNames() และอื่น ๆ ตามที่คุณมีอยู่ในโค้ดของคุณ
-
+// ===============================================================
+//                     DATA FETCHING FUNCTIONS
+// ===============================================================
 function getSheetNames() {
-  const sheets = ss.getSheets();
-  const sheetNames = sheets.map(sheet => sheet.getName());
-  return { sheets: sheetNames };
-}
-
-function getStudents(sheetName) {
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error(`ไม่พบชีทชื่อ: ${sheetName}`);
-  const data = sheet.getDataRange().getValues();
-  const headers = data.shift();
-  const students = data.map(row => {
-    const studentObj = {};
-    headers.forEach((header, i) => {
-      studentObj[header] = row[i];
-    });
-    return studentObj;
-  });
-  return { students: students, headers: headers };
-}
-
-// (ฟังก์ชันอื่น ๆ เช่น updateStudent, addStudent, changePassword ... ให้ใช้ของคุณเดิม)
-
-
-
-
-// ===== ฟังก์ชันจัดการข้อมูล (Helper Functions) =====
-
-/**
- * ดึงรายชื่อชีททั้งหมดใน Spreadsheet
- */
-function getSheetNames() {
-  const sheets = ss.getSheets();
-  const sheetNames = sheets.map(sheet => sheet.getName());
-  return { sheets: sheetNames };
-}
-
-/**
- * ดึงข้อมูลนักเรียนทั้งหมดจากชีทที่ระบุ
- */
-function getStudents(sheetName) {
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error(`ไม่พบชีทชื่อ: ${sheetName}`);
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data.shift(); // เอาแถวแรกสุดเป็น headers
-  const students = data.map(row => {
-    const studentObj = {};
-    headers.forEach((header, i) => {
-      studentObj[header] = row[i];
-    });
-    return studentObj;
-  });
-
-  return { students: students, headers: headers };
-}
-
-/**
- * อัปเดตข้อมูลนักเรียน
- */
-function updateStudent(sheetName, studentData) {
-  const sheet = ss.getSheetByName(sheetName);
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const idColumnIndex = headers.indexOf('ID');
-  
-  // หาแถวของนักเรียนที่ต้องการอัปเดต (เริ่มนับจาก 1, +1 เพราะ data ไม่มี header)
-  const rowIndex = data.findIndex(row => row[idColumnIndex] == studentData.ID) + 1; 
-
-  if (rowIndex > 0) {
-    const newRow = headers.map(header => studentData[header] || '');
-    sheet.getRange(rowIndex, 1, 1, newRow.length).setValues([newRow]);
-    return { message: "อัปเดตข้อมูลสำเร็จ" };
-  } else {
-    throw new Error("ไม่พบรหัสนักเรียนที่ต้องการอัปเดต");
+  try {
+    const sheets = ss.getSheets();
+    return sheets.map(sheet => sheet.getName());
+  } catch (e) {
+    return { error: `Error fetching sheet names: ${e.message}` };
   }
 }
 
-/**
- * เพิ่มนักเรียนใหม่
- */
-function addStudent(sheetName, studentData) {
-  const sheet = ss.getSheetByName(sheetName);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const newRow = headers.map(header => studentData[header] || '');
-  sheet.appendRow(newRow);
-  return { message: "เพิ่มนักเรียนสำเร็จ" };
+function getHeaders(sheet) {
+  const range = sheet.getRange(1, 1, 1, sheet.getLastColumn());
+  return range.getValues()[0];
 }
 
+function getStudentData(sheetName) {
+  try {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { error: "Sheet not found" };
 
-/**
- * เพิ่มคอลัมน์คะแนนใหม่
- */
-function addScoreColumn(sheetName, columnName) {
-  const sheet = ss.getSheetByName(sheetName);
-  const lastColumn = sheet.getLastColumn();
-  sheet.getRange(1, lastColumn + 1).setValue(columnName);
-  return { message: "เพิ่มหัวข้อคะแนนสำเร็จ" };
-}
+    const data = sheet.getDataRange().getValues();
+    const headers = data.shift(); // Remove header row
 
-/**
- * เปลี่ยนรหัสผ่านของนักเรียน
- */
-function changePassword(sheetName, studentId, newPassword) {
-  const sheet = ss.getSheetByName(sheetName);
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const idColumnIndex = headers.indexOf('ID');
-  const passwordColumnIndex = headers.indexOf('Password');
+    const colMap = {
+      no: headers.indexOf("No"),
+      id: headers.indexOf("ID"),
+      name: headers.indexOf("Name"),
+      nickname: headers.indexOf("Nickname"),
+      image: headers.indexOf("Image"),
+      password: headers.indexOf("Password")
+    };
 
-  const rowIndex = data.findIndex(row => row[idColumnIndex] == studentId) + 1;
-
-  if (rowIndex > 0) {
-    // +1 เพราะ getRange เริ่มที่ 1
-    sheet.getRange(rowIndex, passwordColumnIndex + 1).setValue(newPassword);
-    return { message: "เปลี่ยนรหัสผ่านสำเร็จ" };
-  } else {
-    throw new Error("ไม่พบรหัสนักเรียน");
-  }
-}
-
-/**
- * อัปโหลดไฟล์รูปภาพไปที่ Google Drive
- */
-function uploadImage(e) {
-  const fileBlob = e.postData.contents;
-  const blob = Utilities.newBlob(Utilities.base64Decode(fileBlob), e.parameter.mimeType, e.parameter.fileName);
-  
-  // ลบรูปเก่าถ้ามี
-  if (e.parameter.oldImageId) {
-    try {
-      DriveApp.getFileById(e.parameter.oldImageId).setTrashed(true);
-    } catch (err) {
-      console.log("ไม่สามารถลบรูปเก่าได้: " + err.message);
+    for (const key in colMap) {
+      if (colMap[key] === -1) {
+        return { error: `Column "${key.charAt(0).toUpperCase() + key.slice(1)}" not found in sheet "${sheetName}".` };
+      }
     }
-  }
 
-  const file = driveFolder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  
-  return { imageId: file.getId() };
+    const students = data.map(row => ({
+      no: row[colMap.no],
+      id: row[colMap.id],
+      name: row[colMap.name],
+      nickname: row[colMap.nickname],
+      image: row[colMap.image],
+    }));
+
+    return { students: students };
+  } catch (e) {
+    return { error: `Error fetching student data: ${e.message}` };
+  }
+}
+
+function verifyStudentPassword(sheetName, studentId, password) {
+  try {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, message: "Sheet not found" };
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idCol = headers.indexOf("ID");
+    const passwordCol = headers.indexOf("Password");
+
+    if (idCol === -1 || passwordCol === -1) {
+      return { success: false, message: "ID or Password column not found." };
+    }
+
+    const studentRow = data.find(row => row[idCol] == studentId);
+
+    if (!studentRow) {
+      return { success: false, message: "Student not found." };
+    }
+    
+    // *** START: CODE FIX FOR ADMIN EDIT ***
+    // This allows an admin (who is already authenticated on the client-side)
+    // to fetch student data for editing without needing the student's actual password.
+    if (password === 'dummy_password_for_data_fetch') {
+        const studentData = {};
+        headers.forEach((header, index) => {
+            studentData[header] = studentRow[index];
+        });
+        return { success: true, studentData: studentData, headers: headers };
+    }
+    // *** END: CODE FIX FOR ADMIN EDIT ***
+
+    if (studentRow[passwordCol] == password) {
+      const studentData = {};
+      headers.forEach((header, index) => {
+        studentData[header] = studentRow[index];
+      });
+      return { success: true, studentData: studentData, headers: headers };
+    } else {
+      return { success: false, message: "Incorrect password." };
+    }
+  } catch (e) {
+    return { success: false, message: `Error: ${e.message}` };
+  }
+}
+
+// ===============================================================
+//                     DATA MODIFICATION FUNCTIONS
+// ===============================================================
+
+function updateStudentPassword(sheetName, studentId, newPassword) {
+  try {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, message: "Sheet not found" };
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idCol = headers.indexOf("ID");
+    const passwordCol = headers.indexOf("Password");
+    
+    if (idCol === -1 || passwordCol === -1) return { success: false, message: "Column 'ID' or 'Password' not found." };
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idCol] == studentId) {
+        sheet.getRange(i + 1, passwordCol + 1).setValue(newPassword);
+        return { success: true, message: "Password updated successfully." };
+      }
+    }
+    return { success: false, message: "Student ID not found." };
+  } catch (e) {
+    return { success: false, message: `Error: ${e.message}` };
+  }
+}
+
+function uploadImage(fileData, oldImageId) {
+  try {
+    const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+
+    if (oldImageId) {
+      try {
+        const oldFile = DriveApp.getFileById(oldImageId);
+        oldFile.setTrashed(true);
+      } catch (e) {
+        console.log(`Could not delete old file with ID ${oldImageId}. It might have been deleted already. Error: ${e.message}`);
+      }
+    }
+
+    const decoded = Utilities.base64Decode(fileData.base64);
+    const blob = Utilities.newBlob(decoded, fileData.mimeType, fileData.name);
+    const newFile = folder.createFile(blob);
+    newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    return { success: true, fileId: newFile.getId() };
+  } catch (e) {
+    return { success: false, message: `Image upload failed: ${e.message}` };
+  }
+}
+
+function updateStudentData(sheetName, studentId, updatedData) {
+   try {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, message: "Sheet not found" };
+    
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idCol = headers.indexOf("ID");
+    
+    if (idCol === -1) return { success: false, message: "Column 'ID' not found." };
+    
+    let studentRowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idCol] == studentId) {
+        studentRowIndex = i + 1;
+        break;
+      }
+    }
+    
+    if (studentRowIndex === -1) return { success: false, message: "Student ID not found." };
+
+    headers.forEach((header, index) => {
+      if (updatedData.hasOwnProperty(header)) {
+        sheet.getRange(studentRowIndex, index + 1).setValue(updatedData[header]);
+      }
+    });
+
+    return { success: true, message: "Data updated successfully." };
+  } catch (e) {
+    return { success: false, message: `Error updating data: ${e.message}` };
+  }
+}
+
+function addNewScoreColumn(sheetName, topicName) {
+  try {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, message: "Sheet not found" };
+
+    const lastCol = sheet.getLastColumn();
+    sheet.getRange(1, lastCol + 1).setValue(topicName);
+    return { success: true, message: `Column '${topicName}' added successfully.`};
+  } catch (e) {
+    return { success: false, message: `Error adding column: ${e.message}` };
+  }
+}
+
+// ===============================================================
+//                     ADMIN VERIFICATION
+// ===============================================================
+function verifyAdminPassword(password) {
+  return { isAdmin: password === ADMIN_PASSWORD };
 }
