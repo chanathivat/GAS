@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHANATHIVAT Student Information System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            font-family: 'Prompt', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e6e6fa 100%);
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #4e54c8 0%, #8f94fb 100%);
+        }
+        
+        .purple-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .blue-gradient {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+        
+        .profile-pic {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 3px solid white;
+        }
+        
+        .radar-chart-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <header class="gradient-bg text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <div id="logo" class="text-2xl font-bold cursor-pointer flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                CHANATHIVAT
+            </div>
+            <div id="sheetSelector" class="hidden md:block">
+                <select id="sheetDropdown" class="bg-white text-gray-800 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400">
+                    <option value="" disabled selected>เลือกชั้นเรียน</option>
+                </select>
+            </div>
+            <div id="userInfo" class="hidden">
+                <span id="currentUserName" class="mr-2"></span>
+                <button id="logoutBtn" class="bg-white text-indigo-600 px-4 py-1 rounded-lg hover:bg-gray-100">ออกจากระบบ</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4">
+        <!-- Sheet selector for mobile -->
+        <div id="mobileSheetSelector" class="md:hidden mb-4">
+            <select id="mobileSheetDropdown" class="w-full bg-white text-gray-800 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400">
+                <option value="" disabled selected>เลือกชั้นเรียน</option>
+            </select>
+        </div>
+
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="text-center py-10">
+            <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl mb-8">
+                <div class="p-8">
+                    <div class="uppercase tracking-wide text-sm text-indigo-500 font-semibold">ยินดีต้อนรับสู่</div>
+                    <h1 class="text-3xl font-bold text-gray-800 mt-2">ระบบข้อมูลนักเรียน CHANATHIVAT</h1>
+                    <p class="mt-4 text-gray-600">กรุณาเลือกชั้นเรียนจากเมนูด้านบนเพื่อดูรายชื่อนักเรียน</p>
+                </div>
+            </div>
+            <div class="blue-gradient text-white p-6 rounded-xl shadow-md">
+                <h2 class="text-xl font-bold mb-4">คำแนะนำการใช้งาน</h2>
+                <ul class="text-left list-disc pl-5 space-y-2">
+                    <li>เลือกชั้นเรียนจากเมนูด้านบน</li>
+                    <li>คลิกที่ชื่อนักเรียนเพื่อดูข้อมูลและคะแนน</li>
+                    <li>นักเรียนสามารถเข้าสู่ระบบด้วยรหัสผ่านของตนเอง</li>
+                    <li>คลิกที่โลโก้ CHANATHIVAT เพื่อเข้าสู่ระบบในฐานะผู้ดูแล</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Students List -->
+        <div id="studentsList" class="hidden">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">รายชื่อนักเรียน</h2>
+            <div id="studentsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Student cards will be generated here -->
+            </div>
+        </div>
+
+        <!-- Student Detail View -->
+        <div id="studentDetail" class="hidden max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+            <!-- Student details will be shown here -->
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="hidden max-w-6xl mx-auto">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+                <div class="purple-gradient text-white p-4">
+                    <h2 class="text-2xl font-bold">ระบบจัดการข้อมูลนักเรียน</h2>
+                </div>
+                <div class="p-6">
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="adminSheetSelect">
+                            เลือกชั้นเรียน
+                        </label>
+                        <select id="adminSheetSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="" disabled selected>เลือกชั้นเรียน</option>
+                        </select>
+                    </div>
+                    
+                    <div id="adminStudentList" class="mt-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-700">รายชื่อนักเรียน</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="py-2 px-4 border-b text-left">ลำดับ</th>
+                                        <th class="py-2 px-4 border-b text-left">รหัส</th>
+                                        <th class="py-2 px-4 border-b text-left">ชื่อ-นามสกุล</th>
+                                        <th class="py-2 px-4 border-b text-left">ชื่อเล่น</th>
+                                        <th class="py-2 px-4 border-b text-left">รูปภาพ</th>
+                                        <th class="py-2 px-4 border-b text-left">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminStudentTableBody">
+                                    <!-- Student rows will be generated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <button id="addStudentBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                            เพิ่มนักเรียนใหม่
+                        </button>
+                        <button id="addScoreColumnBtn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 ml-2">
+                            เพิ่มหัวข้อคะแนน
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 id="loginModalTitle" class="text-2xl font-bold mb-6 text-center text-gray-800">เข้าสู่ระบบ</h2>
+            <div id="loginForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
+                        รหัสผ่าน
+                    </label>
+                    <input id="passwordInput" type="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="กรอกรหัสผ่าน">
+                </div>
+                <div class="flex justify-between">
+                    <button id="cancelLoginBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">
+                        ยกเลิก
+                    </button>
+                    <button id="submitLoginBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                        เข้าสู่ระบบ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div id="editStudentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 id="editStudentModalTitle" class="text-2xl font-bold mb-6 text-center text-gray-800">แก้ไขข้อมูลนักเรียน</h2>
+            <div id="editStudentForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="editStudentNo">
+                            ลำดับ
+                        </label>
+                        <input id="editStudentNo" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ลำดับ">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="editStudentId">
+                            รหัสนักเรียน
+                        </label>
+                        <input id="editStudentId" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="รหัสนักเรียน">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="editStudentName">
+                            ชื่อ-นามสกุล
+                        </label>
+                        <input id="editStudentName" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ชื่อ-นามสกุล">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="editStudentNickname">
+                            ชื่อเล่น
+                        </label>
+                        <input id="editStudentNickname" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ชื่อเล่น">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="editStudentPassword">
+                        รหัสผ่าน
+                    </label>
+                    <input id="editStudentPassword" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="รหัสผ่าน">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                        รูปภาพ
+                    </label>
+                    <div class="flex items-center space-x-4">
+                        <img id="editStudentImage" src="" alt="Student" class="w-24 h-24 object-cover rounded-full border-2 border-gray-300">
+                        <input type="file" id="editStudentImageUpload" accept="image/*" class="hidden">
+                        <button id="uploadImageBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                            อัพโหลดรูปภาพ
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="editScoresSection" class="mb-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700">คะแนน</h3>
+                    <div id="editScoresContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Score fields will be generated here -->
+                    </div>
+                </div>
+                
+                <div class="flex justify-between">
+                    <button id="cancelEditBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">
+                        ยกเลิก
+                    </button>
+                    <button id="saveEditBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                        บันทึก
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Score Column Modal -->
+    <div id="addScoreColumnModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">เพิ่มหัวข้อคะแนน</h2>
+            <div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="newColumnName">
+                        ชื่อหัวข้อคะแนน
+                    </label>
+                    <input id="newColumnName" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="เช่น คะแนนสอบกลางภาค">
+                </div>
+                <div class="flex justify-between">
+                    <button id="cancelAddColumnBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">
+                        ยกเลิก
+                    </button>
+                    <button id="saveAddColumnBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                        บันทึก
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">เปลี่ยนรหัสผ่าน</h2>
+            <div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="currentPassword">
+                        รหัสผ่านปัจจุบัน
+                    </label>
+                    <input id="currentPassword" type="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="รหัสผ่านปัจจุบัน">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="newPassword">
+                        รหัสผ่านใหม่
+                    </label>
+                    <input id="newPassword" type="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="รหัสผ่านใหม่">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="confirmPassword">
+                        ยืนยันรหัสผ่านใหม่
+                    </label>
+                    <input id="confirmPassword" type="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ยืนยันรหัสผ่านใหม่">
+                </div>
+                <div class="flex justify-between">
+                    <button id="cancelChangePasswordBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">
+                        ยกเลิก
+                    </button>
+                    <button id="saveChangePasswordBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                        บันทึก
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyfbaufwpdq2ry2WkR7X07StnWfEm9jC6zeSGqJVlzFxKuY8f0u7IcGjcPsO_5Yuyuw5Q/exec';
+        let currentSheet = '';
+        let allStudents = [];
+        let allHeaders = [];
+        let currentStudent = null;
+        let currentUser = null;
+        let isAdmin = false;
+        const ADMIN_PASSWORD = '0652370343';
+        let radarChart = null;
+
+        // DOM Elements
+        const loadingElement = document.getElementById('loading');
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        const studentsList = document.getElementById('studentsList');
+        const studentsGrid = document.getElementById('studentsGrid');
+        const studentDetail = document.getElementById('studentDetail');
+        const adminPanel = document.getElementById('adminPanel');
+        const sheetDropdown = document.getElementById('sheetDropdown');
+        const mobileSheetDropdown = document.getElementById('mobileSheetDropdown');
+        const loginModal = document.getElementById('loginModal');
+        const passwordInput = document.getElementById('passwordInput');
+        const submitLoginBtn = document.getElementById('submitLoginBtn');
+        const cancelLoginBtn = document.getElementById('cancelLoginBtn');
+        const loginModalTitle = document.getElementById('loginModalTitle');
+        const logo = document.getElementById('logo');
+        const userInfo = document.getElementById('userInfo');
+        const currentUserName = document.getElementById('currentUserName');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const editStudentModal = document.getElementById('editStudentModal');
+        const editStudentModalTitle = document.getElementById('editStudentModalTitle');
+        const editStudentNo = document.getElementById('editStudentNo');
+        const editStudentId = document.getElementById('editStudentId');
+        const editStudentName = document.getElementById('editStudentName');
+        const editStudentNickname = document.getElementById('editStudentNickname');
+        const editStudentPassword = document.getElementById('editStudentPassword');
+        const editStudentImage = document.getElementById('editStudentImage');
+        const uploadImageBtn = document.getElementById('uploadImageBtn');
+        const editStudentImageUpload = document.getElementById('editStudentImageUpload');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const saveEditBtn = document.getElementById('saveEditBtn');
+        const editScoresContainer = document.getElementById('editScoresContainer');
+        const adminSheetSelect = document.getElementById('adminSheetSelect');
+        const adminStudentTableBody = document.getElementById('adminStudentTableBody');
+        const addStudentBtn = document.getElementById('addStudentBtn');
+        const addScoreColumnBtn = document.getElementById('addScoreColumnBtn');
+        const addScoreColumnModal = document.getElementById('addScoreColumnModal');
+        const newColumnName = document.getElementById('newColumnName');
+        const saveAddColumnBtn = document.getElementById('saveAddColumnBtn');
+        const cancelAddColumnBtn = document.getElementById('cancelAddColumnBtn');
+        const changePasswordModal = document.getElementById('changePasswordModal');
+        const currentPassword = document.getElementById('currentPassword');
+        const newPassword = document.getElementById('newPassword');
+        const confirmPassword = document.getElementById('confirmPassword');
+        const saveChangePasswordBtn = document.getElementById('saveChangePasswordBtn');
+        const cancelChangePasswordBtn = document.getElementById('cancelChangePasswordBtn');
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', init);
+
+        function init() {
+            fetchSheets();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            // Sheet selection
+            sheetDropdown.addEventListener('change', handleSheetChange);
+            mobileSheetDropdown.addEventListener('change', handleSheetChange);
+            adminSheetSelect.addEventListener('change', handleAdminSheetChange);
+            
+            // Logo click for admin login
+            logo.addEventListener('click', showAdminLoginModal);
+            
+            // Login modal
+            submitLoginBtn.addEventListener('click', handleLogin);
+            cancelLoginBtn.addEventListener('click', hideLoginModal);
+            
+            // Logout
+            logoutBtn.addEventListener('click', handleLogout);
+            
+            // Edit student modal
+            cancelEditBtn.addEventListener('click', hideEditStudentModal);
+            saveEditBtn.addEventListener('click', saveStudentChanges);
+            uploadImageBtn.addEventListener('click', () => editStudentImageUpload.click());
+            editStudentImageUpload.addEventListener('change', handleImageUpload);
+            
+            // Add student
+            addStudentBtn.addEventListener('click', showAddStudentModal);
+            
+            // Add score column
+            addScoreColumnBtn.addEventListener('click', showAddScoreColumnModal);
+            saveAddColumnBtn.addEventListener('click', saveNewScoreColumn);
+            cancelAddColumnBtn.addEventListener('click', hideAddScoreColumnModal);
+            
+            // Change password
+            cancelChangePasswordBtn.addEventListener('click', hideChangePasswordModal);
+            saveChangePasswordBtn.addEventListener('click', saveNewPassword);
+        }
+
+        // Fetch available sheets from the Google Sheet
+        function fetchSheets() {
+            showLoading();
+            fetch(`${API_URL}?action=getSheets`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        populateSheetDropdowns(data.sheets);
+                    } else {
+                        alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + data.error);
+                    }
+                    hideLoading();
+                })
+                .catch(error => {
+                    console.error('Error fetching sheets:', error);
+                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                    hideLoading();
+                });
+        }
+
+        // Populate sheet dropdowns with available sheets
+        function populateSheetDropdowns(sheets) {
+            sheetDropdown.innerHTML = '<option value="" disabled selected>เลือกชั้นเรียน</option>';
+            mobileSheetDropdown.innerHTML = '<option value="" disabled selected>เลือกชั้นเรียน</option>';
+            adminSheetSelect.innerHTML = '<option value="" disabled selected>เลือกชั้นเรียน</option>';
+            
+            sheets.forEach(sheet => {
+                const option1 = document.createElement('option');
+                option1.value = sheet;
+                option1.textContent = sheet;
+                sheetDropdown.appendChild(option1);
+                
+                const option2 = document.createElement('option');
+                option2.value = sheet;
+                option2.textContent = sheet;
+                mobileSheetDropdown.appendChild(option2);
+                
+                const option3 = document.createElement('option');
+                option3.value = sheet;
+                option3.textContent = sheet;
+                adminSheetSelect.appendChild(option3);
+            });
+        }
+
+        // Handle sheet change
+        function handleSheetChange(event) {
+            const selectedSheet = event.target.value;
+            currentSheet = selectedSheet;
+            
+            // Sync the other dropdown
+            if (event.target === sheetDropdown) {
+                mobileSheetDropdown.value = selectedSheet;
+            } else {
+                sheetDropdown.value = selectedSheet;
+            }
+            
+            fetchStudents(selectedSheet);
+        }
+
+        // Handle admin sheet change
+        function handleAdminSheetChange(event) {
+            const selectedSheet = event.target.value;
+            currentSheet = selectedSheet;
+            fetchStudentsForAdmin(selectedSheet);
+        }
+
+        // Fetch students for the selected sheet
+        function fetchStudents(sheetName) {
+            showLoading();
+            fetch(`${API_URL}?action=getStudents&sheet=${sheetName}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        allStudents = data.students;
+                        allHeaders = data.headers;
+                        displayStudents(data.students);
+                        hideWelcomeScreen();
+                    } else {
+                        alert('เกิดข้อผิดพลาดในการโหลดข้อมูลนักเรียน: ' + data.error);
+                    }
+                    hideLoading();
+                })
+                .catch(error => {
+                    console.error('Error fetching students:', error);
+                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                    hideLoading();
+                });
+        }
+
+        // Fetch students for admin panel
+        function fetchStudentsForAdmin(sheetName) {
+            showLoading();
+            fetch(`${API_URL}?action=getStudents&sheet=${sheetName}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        allStudents = data.students;
+                        allHeaders = data.headers;
+                        displayStudentsForAdmin(data.students);
+                    } else {
+                        alert('เกิดข้อผิดพลาดในการโหลดข้อมูลนักเรียน: ' + data.error);
+                    }
+                    hideLoading();
+                })
+                .catch(error => {
+                    console.error('Error fetching students for admin:', error);
+                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                    hideLoading();
+                });
+        }
+
+        // Display students in the grid
+        function displayStudents(students) {
+            studentsGrid.innerHTML = '';
+            
+            students.forEach(student => {
+                const card = document.createElement('div');
+                card.className = 'card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg';
+                card.dataset.studentId = student.ID;
+                
+                let imageUrl = 'https://via.placeholder.com/100?text=No+Image';
+                if (student.Image && student.Image.trim() !== '') {
+                    imageUrl = `https://lh3.googleusercontent.com/d/${student.Image}`;
+                }
+                
+                card.innerHTML = `
+                    <div class="blue-gradient text-white p-3 text-center">
+                        <h3 class="font-bold">${student.Name}</h3>
+                    </div>
+                    <div class="p-4 text-center">
+                        <img src="${imageUrl}" alt="${student.Name}" class="profile-pic mx-auto mb-3">
+                        <p class="text-gray-600">รหัส: ${student.ID}</p>
+                        <p class="text-gray-600">ชื่อเล่น: ${student.Nickname || '-'}</p>
+                        <button class="view-student-btn mt-3 bg-indigo-600 text-white px-4 py-1 rounded-lg hover:bg-indigo-700 w-full">
+                            ดูข้อมูล
+                        </button>
+                    </div>
+                `;
+                
+                card.querySelector('.view-student-btn').addEventListener('click', () => {
+                    showStudentLoginModal(student);
+                });
+                
+                studentsGrid.appendChild(card);
+            });
+            
+            showStudentsList();
+        }
+
+        // Display students in admin table
+        function displayStudentsForAdmin(students) {
+            adminStudentTableBody.innerHTML = '';
+            
+            students.forEach(student => {
+                const row = document.createElement('tr');
+                
+                let imageUrl = 'https://via.placeholder.com/40?text=No+Image';
+                if (student.Image && student.Image.trim() !== '') {
+                    imageUrl = `https://lh3.googleusercontent.com/d/${student.Image}`;
+                }
+                
+                row.innerHTML = `
+                    <td class="py-2 px-4 border-b">${student.No}</td>
+                    <td class="py-2 px-4 border-b">${student.ID}</td>
+                    <td class="py-2 px-4 border-b">${student.Name}</td>
+                    <td class="py-2 px-4 border-b">${student.Nickname || '-'}</td>
+                    <td class="py-2 px-4 border-b">
+                        <img src="${imageUrl}" alt="${student.Name}" class="w-10 h-10 rounded-full object-cover">
+                    </td>
+                    <td class="py-2 px-4 border-b">
+                        <button class="edit-student-btn bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-sm">
+                            แก้ไข
+                        </button>
+                    </td>
+                `;
+                
+                row.querySelector('.edit-student-btn').addEventListener('click', () => {
+                    showEditStudentModal(student);
+                });
+                
+                adminStudentTableBody.appendChild(row);
+            });
+        }
+
+        // Show student login modal
+        function showStudentLoginModal(student) {
+            currentStudent = student;
+            loginModalTitle.textContent = `เข้าสู่ระบบ - ${student.Name}`;
+            passwordInput.value = '';
+            showLoginModal();
+        }
+
+        // Show admin login modal
+        function showAdminLoginModal() {
+            currentStudent = null;
+            loginModalTitle.textContent = 'เข้าสู่ระบบ CHANATHIVAT';
+            passwordInput.value = '';
+            showLoginModal();
+        }
+
+        // Handle login
+        function handleLogin() {
+            const password = passwordInput.value.trim();
+            
+            if (password === '') {
+                alert('กรุณากรอกรหัสผ่าน');
+                return;
+            }
+            
+            if (currentStudent) {
+                // Student login
+                if (password === currentStudent.Password) {
+                    hideLoginModal();
+                    currentUser = currentStudent;
+                    isAdmin = false;
+                    showUserInfo(currentStudent.Name);
+                    showStudentDetail(currentStudent);
+                } else {
+                    alert('รหัสผ่านไม่ถูกต้อง');
+                }
+            } else {
+                // Admin login
+                if (password === ADMIN_PASSWORD) {
+                    hideLoginModal();
+                    currentUser = { Name: 'CHANATHIVAT' };
+                    isAdmin = true;
+                    showUserInfo('CHANATHIVAT (Admin)');
+                    showAdminPanel();
+                } else {
+                    alert('รหัสผ่านไม่ถูกต้อง');
+                }
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            currentUser = null;
+            isAdmin = false;
+            hideUserInfo();
+            hideStudentDetail();
+            hideAdminPanel();
+            
+            if (currentSheet) {
+                showStudentsList();
+            } else {
+                showWelcomeScreen();
+            }
+        }
+
+        // Show student detail
+        function showStudentDetail(student) {
+            hideStudentsList();
+            hideAdminPanel();
+            
+            const scoreHeaders = allHeaders.filter(header => 
+                !['No', 'ID', 'Name', 'Nickname', 'Image', 'Password'].includes(header)
+            );
+            
+            let imageUrl = 'https://via.placeholder.com/150?text=No+Image';
+            if (student.Image && student.Image.trim() !== '') {
+                imageUrl = `https://lh3.googleusercontent.com/d/${student.Image}`;
+            }
+            
+            studentDetail.innerHTML = `
+                <div class="purple-gradient text-white p-6 flex flex-col md:flex-row items-center">
+                    <img src="${imageUrl}" alt="${student.Name}" class="profile-pic mb-4 md:mb-0 md:mr-6">
+                    <div>
+                        <h2 class="text-2xl font-bold">${student.Name}</h2>
+                        <p>รหัสนักเรียน: ${student.ID}</p>
+                        <p>ชื่อเล่น: ${student.Nickname || '-'}</p>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-700">คะแนน</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="py-2 px-4 border-b text-left">หัวข้อ</th>
+                                        <th class="py-2 px-4 border-b text-left">คะแนน</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scoreTableBody">
+                                    ${scoreHeaders.map(header => `
+                                        <tr>
+                                            <td class="py-2 px-4 border-b">${header}</td>
+                                            <td class="py-2 px-4 border-b">${student[header] || '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-700">กราฟแมงมุม</h3>
+                        <div class="radar-chart-container">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-6">
+                        <button id="changePasswordBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                            เปลี่ยนรหัสผ่าน
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('changePasswordBtn').addEventListener('click', showChangePasswordModal);
+            
+            studentDetail.classList.remove('hidden');
+            
+            // Create radar chart
+            createRadarChart(student, scoreHeaders);
+        }
+
+        // Create radar chart for student scores
+        function createRadarChart(student, scoreHeaders) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            // Filter out headers with no scores or non-numeric scores
+            const validScoreHeaders = scoreHeaders.filter(header => {
+                const score = parseFloat(student[header]);
+                return !isNaN(score);
+            });
+            
+            const data = {
+                labels: validScoreHeaders,
+                datasets: [{
+                    label: 'คะแนน',
+                    data: validScoreHeaders.map(header => parseFloat(student[header]) || 0),
+                    backgroundColor: 'rgba(78, 84, 200, 0.2)',
+                    borderColor: 'rgba(78, 84, 200, 1)',
+                    pointBackgroundColor: 'rgba(78, 84, 200, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(78, 84, 200, 1)'
+                }]
+            };
+            
+            const config = {
+                type: 'radar',
+                data: data,
+                options: {
+                    responsive: true,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            ticks: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            };
+            
+            if (radarChart) {
+                radarChart.destroy();
+            }
+            
+            if (validScoreHeaders.length > 0) {
+                radarChart = new Chart(ctx, config);
+            } else {
+                document.querySelector('.radar-chart-container').innerHTML = '<p class="text-center text-gray-500">ไม่มีข้อมูลคะแนนสำหรับสร้างกราฟ</p>';
+            }
+        }
+
+        // Show edit student modal
+        function showEditStudentModal(student = null) {
+            editStudentModalTitle.textContent = student ? 'แก้ไขข้อมูลนักเรียน' : 'เพิ่มนักเรียนใหม่';
+            
+            if (student) {
+                // Edit existing student
+                editStudentNo.value = student.No || '';
+                editStudentId.value = student.ID || '';
+                editStudentName.value = student.Name || '';
+                editStudentNickname.value = student.Nickname || '';
+                editStudentPassword.value = student.Password || '';
+                
+                if (student.Image && student.Image.trim() !== '') {
+                    editStudentImage.src = `https://lh3.googleusercontent.com/d/${student.Image}`;
+                } else {
+                    editStudentImage.src = 'https://via.placeholder.com/100?text=No+Image';
+                }
+                
+                // Populate score fields
+                populateScoreFields(student);
+            } else {
+                // Add new student
+                editStudentNo.value = '';
+                editStudentId.value = '';
+                editStudentName.value = '';
+                editStudentNickname.value = '';
+                editStudentPassword.value = '';
+                editStudentImage.src = 'https://via.placeholder.com/100?text=No+Image';
+                
+                // Empty score fields
+                populateScoreFields();
+            }
+            
+            currentStudent = student || {};
+            editStudentModal.classList.remove('hidden');
+        }
+
+        // Populate score fields in edit modal
+        function populateScoreFields(student = {}) {
+            editScoresContainer.innerHTML = '';
+            
+            const scoreHeaders = allHeaders.filter(header => 
+                !['No', 'ID', 'Name', 'Nickname', 'Image', 'Password'].includes(header)
+            );
+            
+            scoreHeaders.forEach(header => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="score_${header}">
+                        ${header}
+                    </label>
+                    <input id="score_${header}" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                           placeholder="${header}" value="${student[header] || ''}">
+                `;
+                editScoresContainer.appendChild(div);
+            });
+        }
+
+        // Hide edit student modal
+        function hideEditStudentModal() {
+            editStudentModal.classList.add('hidden');
+        }
+
+        // Save student changes
+        function saveStudentChanges() {
+            const isNewStudent = !currentStudent.ID;
+            
+            // Validate required fields
+            if (!editStudentNo.value || !editStudentId.value || !editStudentName.value) {
+                alert('กรุณากรอกข้อมูลที่จำเป็น: ลำดับ, รหัสนักเรียน, และชื่อ-นามสกุล');
+                return;
+            }
+            
+            // Collect student data
+            const studentData = {
+                No: editStudentNo.value,
+                ID: editStudentId.value,
+                Name: editStudentName.value,
+                Nickname: editStudentNickname.value,
+                Password: editStudentPassword.value,
+                Image: currentStudent.Image || ''
+            };
+            
+            // Collect score data
+            const scoreHeaders = allHeaders.filter(header => 
+                !['No', 'ID', 'Name', 'Nickname', 'Image', 'Password'].includes(header)
+            );
+            
+            scoreHeaders.forEach(header => {
+                const scoreInput = document.getElementById(`score_${header}`);
+                if (scoreInput) {
+                    studentData[header] = scoreInput.value;
+                }
+            });
+            
+            showLoading();
+            
+            // Save student data
+            fetch(`${API_URL}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: isNewStudent ? 'addStudent' : 'updateStudent',
+                    sheet: currentSheet,
+                    student: studentData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(isNewStudent ? 'เพิ่มนักเรียนสำเร็จ' : 'บันทึกข้อมูลสำเร็จ');
+                    hideEditStudentModal();
+                    fetchStudentsForAdmin(currentSheet);
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + data.error);
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error saving student:', error);
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                hideLoading();
+            });
+        }
+
+        // Handle image upload
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Check file type and size
+            if (!file.type.match('image.*')) {
+                alert('กรุณาอัพโหลดไฟล์รูปภาพเท่านั้น');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                alert('ขนาดไฟล์ต้องไม่เกิน 5MB');
+                return;
+            }
+            
+            showLoading();
+            
+            // Create FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('action', 'uploadImage');
+            formData.append('studentId', currentStudent.ID || '');
+            formData.append('oldImageId', currentStudent.Image || '');
+            
+            // Upload image
+            fetch(API_URL, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update image preview and student data
+                    editStudentImage.src = `https://lh3.googleusercontent.com/d/${data.imageId}`;
+                    currentStudent.Image = data.imageId;
+                    alert('อัพโหลดรูปภาพสำเร็จ');
+                } else {
+                    alert('เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + data.error);
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error uploading image:', error);
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                hideLoading();
+            });
+        }
+
+        // Show add student modal
+        function showAddStudentModal() {
+            showEditStudentModal(null);
+        }
+
+        // Show add score column modal
+        function showAddScoreColumnModal() {
+            newColumnName.value = '';
+            addScoreColumnModal.classList.remove('hidden');
+        }
+
+        // Hide add score column modal
+        function hideAddScoreColumnModal() {
+            addScoreColumnModal.classList.add('hidden');
+        }
+
+        // Save new score column
+        function saveNewScoreColumn() {
+            const columnName = newColumnName.value.trim();
+            
+            if (!columnName) {
+                alert('กรุณากรอกชื่อหัวข้อคะแนน');
+                return;
+            }
+            
+            showLoading();
+            
+            fetch(`${API_URL}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'addScoreColumn',
+                    sheet: currentSheet,
+                    columnName: columnName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('เพิ่มหัวข้อคะแนนสำเร็จ');
+                    hideAddScoreColumnModal();
+                    fetchStudentsForAdmin(currentSheet);
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + data.error);
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error adding score column:', error);
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                hideLoading();
+            });
+        }
+
+        // Show change password modal
+        function showChangePasswordModal() {
+            currentPassword.value = '';
+            newPassword.value = '';
+            confirmPassword.value = '';
+            changePasswordModal.classList.remove('hidden');
+        }
+
+        // Hide change password modal
+        function hideChangePasswordModal() {
+            changePasswordModal.classList.add('hidden');
+        }
+
+        // Save new password
+        function saveNewPassword() {
+            const current = currentPassword.value;
+            const newPass = newPassword.value;
+            const confirm = confirmPassword.value;
+            
+            if (!current || !newPass || !confirm) {
+                alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+                return;
+            }
+            
+            if (current !== currentUser.Password) {
+                alert('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+                return;
+            }
+            
+            if (newPass !== confirm) {
+                alert('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน');
+                return;
+            }
+            
+            showLoading();
+            
+            fetch(`${API_URL}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'changePassword',
+                    sheet: currentSheet,
+                    studentId: currentUser.ID,
+                    newPassword: newPass
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('เปลี่ยนรหัสผ่านสำเร็จ');
+                    currentUser.Password = newPass;
+                    hideChangePasswordModal();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + data.error);
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error changing password:', error);
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                hideLoading();
+            });
+        }
+
+        // Show login modal
+        function showLoginModal() {
+            loginModal.classList.remove('hidden');
+            setTimeout(() => {
+                passwordInput.focus();
+            }, 100);
+        }
+
+        // Hide login modal
+        function hideLoginModal() {
+            loginModal.classList.add('hidden');
+            passwordInput.value = '';
+        }
+
+        // Show user info in header
+        function showUserInfo(name) {
+            currentUserName.textContent = name;
+            userInfo.classList.remove('hidden');
+        }
+
+        // Hide user info in header
+        function hideUserInfo() {
+            userInfo.classList.add('hidden');
+        }
+
+        // Show welcome screen
+        function showWelcomeScreen() {
+            welcomeScreen.classList.remove('hidden');
+            studentsList.classList.add('hidden');
+            studentDetail.classList.add('hidden');
+            adminPanel.classList.add('hidden');
+        }
+
+        // Hide welcome screen
+        function hideWelcomeScreen() {
+            welcomeScreen.classList.add('hidden');
+        }
+
+        // Show students list
+        function showStudentsList() {
+            studentsList.classList.remove('hidden');
+            studentDetail.classList.add('hidden');
+            adminPanel.classList.add('hidden');
+        }
+
+        // Hide students list
+        function hideStudentsList() {
+            studentsList.classList.add('hidden');
+        }
+
+        // Hide student detail
+        function hideStudentDetail() {
+            studentDetail.classList.add('hidden');
+        }
+
+        // Show admin panel
+        function showAdminPanel() {
+            adminPanel.classList.remove('hidden');
+            studentsList.classList.add('hidden');
+            studentDetail.classList.add('hidden');
+            welcomeScreen.classList.add('hidden');
+        }
+
+        // Hide admin panel
+        function hideAdminPanel() {
+            adminPanel.classList.add('hidden');
+        }
+
+        // Show loading spinner
+        function showLoading() {
+            loadingElement.classList.remove('hidden');
+        }
+
+        // Hide loading spinner
+        function hideLoading() {
+            loadingElement.classList.add('hidden');
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'963fc0e113777b56',t:'MTc1MzMyMTY4Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
