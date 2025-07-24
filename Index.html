@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+    <?!= include('CSS'); ?>
+  </head>
+  <body>
+    <div id="loader" class="loader-container">
+      <div class="loader"></div>
+      <p>Loading...</p>
+    </div>
+
+    <div id="app-container" style="display:none;">
+      <header>
+        <div id="logo" class="logo">
+          <h1>CHANATHIVAT</h1>
+          <p>Student Information System</p>
+        </div>
+        <div class="controls">
+          <select id="sheet-selector" class="sheet-selector">
+            <option value="">-- Select Class --</option>
+          </select>
+          <button id="add-column-btn" class="admin-only-btn" style="display: none;"><i class="fas fa-plus-circle"></i> Add Topic</button>
+        </div>
+      </header>
+      
+      <main id="main-content">
+        <div id="student-list" class="student-grid">
+          </div>
+
+        <div id="student-dashboard" class="dashboard-container" style="display:none;">
+          <button id="back-to-list-btn" class="back-btn"><i class="fas fa-arrow-left"></i> Back to List</button>
+          <h2 id="dashboard-title"></h2>
+          <div class="dashboard-content">
+            <div class="chart-container">
+              <canvas id="score-chart"></canvas>
+            </div>
+            <div class="info-container">
+              <h3>Scores</h3>
+              <table id="score-table">
+                </table>
+              <button id="change-password-btn" class="action-btn"><i class="fas fa-key"></i> Change Password</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  
+    <?!= include('JavaScript'); ?>
+  </body>
+</html>
