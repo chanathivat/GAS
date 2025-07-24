@@ -15,7 +15,6 @@
   let currentHeaders = [];
   let scoreChart = null;
   let isAdmin = false;
-  let croppedImageData = null; // Variable to hold cropped image data
 
   const loader = document.getElementById('loader');
   const appContainer = document.getElementById('app-container');
@@ -128,61 +127,8 @@
     });
     hideLoader();
   }
-  function handleSaveChangesFromDashboard() {
-  const updatedData = {
-    Name: document.getElementById('edit-name').value,
-    Nickname: document.getElementById('edit-nickname').value
-  };
-  
-  const scoreHeaders = Object.keys(getScoreData(currentStudentData, currentHeaders));
-  scoreHeaders.forEach(topic => {
-    updatedData[topic] = document.getElementById(`score-${topic.replace(/\s+/g, '-')}`).value;
-  });
-
-  // ## MODIFIED PART ##
-  // ตรวจสอบว่ามีข้อมูลรูปภาพที่ถูกครอบตัดหรือไม่
-  let fileData = null;
-  if (croppedImageData) {
-    fileData = {
-      name: 'cropped_image.jpg',
-      mimeType: 'image/jpeg',
-      base64: croppedImageData.split(',')[1] // เอาเฉพาะข้อมูล base64
-    };
-  }
-  
-  showLoader();
-  const saveUpdates = (newImageId) => {
-    if (newImageId) {
-      updatedData.Image = newImageId;
-    }
-    google.script.run.withSuccessHandler(response => {
-        hideLoader();
-        if (response.success) {
-          Swal.fire('Saved!', 'Student data has been updated.', 'success')
-            .then(() => showStudentList());
-        } else {
-          handleError({ message: response.message });
-        }
-    }).withFailureHandler(handleError)
-    .updateStudentData(currentSheetName, currentStudentData.ID, updatedData);
-  };
-
-  if (fileData) { // ถ้ามีไฟล์รูปใหม่
-    google.script.run.withSuccessHandler(response => {
-        if (response.success) {
-          saveUpdates(response.fileId);
-        } else {
-          handleError({ message: response.message });
-        }
-    }).withFailureHandler(handleError)
-    .uploadImage(fileData, currentStudentData.Image);
-  } else { // ถ้าไม่มีการเปลี่ยนรูป
-    saveUpdates(null);
-  }
-}
 
   function renderDashboard(data) {
-    croppedImageData = null;
     currentStudentData = data.studentData;
     currentHeaders = data.headers;
     dashboardTitle.textContent = `Welcome, ${currentStudentData.Name}`;
@@ -419,180 +365,126 @@
   // Ideally, the admin function would fetch data directly. Let's adapt `verifyStudentPassword` for this.
   // **Modification in Code.gs is needed**: if password is 'dummy_password_for_data_fetch' and called by admin context, return data.
   // For now, we will create a NEW function in GS called `getSingleStudentDataForAdmin`
-  function handleImageCropping(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    Swal.fire({
-      title: 'Crop Image',
-      html: `<div class="img-container-cropper"><img id="image-to-crop" src="${e.target.result}"></div>`,
-      confirmButtonText: 'Crop & Use Image',
-      showCancelButton: true,
-      customClass: { popup: 'cropper-popup' },
-      didOpen: () => {
-        const image = document.getElementById('image-to-crop');
-        const cropper = new Cropper(image, {
-          aspectRatio: 1 / 1, // กำหนดให้ครอบตัดเป็นสี่เหลี่ยมจัตุรัส
-          viewMode: 1,
-          background: false
-        });
-        
-        // ทำให้ปุ่ม Confirm ทำงานตามที่เราต้องการ
-        Swal.getConfirmButton().onclick = () => {
-          // ดึงข้อมูลรูปที่ครอบตัดแล้ว
-          croppedImageData = cropper.getCroppedCanvas({
-            width: 512,
-            height: 512,
-          }).toDataURL('image/jpeg');
-          
-          // แสดงรูปตัวอย่างที่หน้าแก้ไข
-          document.getElementById('edit-profile-pic-preview').src = croppedImageData;
-          Swal.close(); // ปิดหน้าต่างครอบตัด
-        };
-      }
-    });
-  };
-  reader.readAsDataURL(file);
-}
+  
   // Create getSingleStudentDataForAdmin in Code.gs first. Let's assume it exists and returns {success, studentData, headers}.
   // For the purpose of this demonstration, let's just use the data we have and add a fetch for scores.
   
    function showAdminEditModal(fullStudentData, headers) {
-    croppedImageData = null; // รีเซ็ตค่ารูปที่ตัดแล้วทุกครั้งที่เปิด
-    const scoreData = getScoreData(fullStudentData, headers);
-    const nonScoreFields = ['No', 'ID', 'Name', 'Nickname', 'Image', 'Password'];
+        const scoreData = getScoreData(fullStudentData, headers);
+        const nonScoreFields = ['No', 'ID', 'Name', 'Nickname', 'Image', 'Password'];
 
-    let scoreInputs = Object.entries(scoreData).map(([topic, score]) => `
-      <div class="swal-form-group">
-        <label for="swal-score-${topic.replace(/\s+/g, '-')}">${topic}</label>
-        <input id="swal-score-${topic.replace(/\s+/g, '-')}" class="swal2-input" type="number" value="${score}">
-      </div>
-    `).join('');
+        let scoreInputs = Object.entries(scoreData).map(([topic, score]) => `
+          <div class="swal-form-group">
+            <label for="swal-score-${topic.replace(/\s+/g, '-')}">${topic}</label>
+            <input id="swal-score-${topic.replace(/\s+/g, '-')}" class="swal2-input" type="number" value="${score}">
+          </div>
+        `).join('');
 
-    Swal.fire({
-        title: `Edit ${fullStudentData.Name}`,
-        html: `
-            <img id="swal-image-preview" src="${fullStudentData.Image ? G_DRIVE_URL_PREFIX + fullStudentData.Image : PLACEHOLDER_IMG_URL}" alt="Profile Preview">
-            <div class="swal-form-group">
-              <label for="swal-image">Change Image</label>
-              <input id="swal-image" class="swal2-input" type="file" accept="image/*">
-            </div>
-            <div class="swal-form-group">
-              <label for="swal-name">Name</label>
-              <input id="swal-name" class="swal2-input" value="${fullStudentData.Name}">
-            </div>
-            <div class="swal-form-group">
-              <label for="swal-nickname">Nickname</label>
-              <input id="swal-nickname" class="swal2-input" value="${fullStudentData.Nickname}">
-            </div>
-            <hr>
-            <h4>Scores</h4>
-            ${scoreInputs}
-        `,
-        confirmButtonText: 'Save Changes',
-        showCancelButton: true,
-        focusConfirm: false,
-        didOpen: () => {
-            // ## START CROPPER LOGIC ##
-            document.getElementById('swal-image').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
+        Swal.fire({
+            title: `Edit ${fullStudentData.Name}`,
+            html: `
+                <img id="swal-image-preview" src="${fullStudentData.Image ? G_DRIVE_URL_PREFIX + fullStudentData.Image : PLACEHOLDER_IMG_URL}" alt="Profile Preview">
+                <div class="swal-form-group">
+                  <label for="swal-image">Change Image</label>
+                  <input id="swal-image" class="swal2-input" type="file" accept="image/*">
+                </div>
+                <div class="swal-form-group">
+                  <label for="swal-name">Name</label>
+                  <input id="swal-name" class="swal2-input" value="${fullStudentData.Name}">
+                </div>
+                <div class="swal-form-group">
+                  <label for="swal-nickname">Nickname</label>
+                  <input id="swal-nickname" class="swal2-input" value="${fullStudentData.Nickname}">
+                </div>
+                <hr>
+                <h4>Scores</h4>
+                ${scoreInputs}
+            `,
+            confirmButtonText: 'Save Changes',
+            showCancelButton: true,
+            focusConfirm: false,
+            didOpen: () => {
+                document.getElementById('swal-image').addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('swal-image-preview').src = e.target.result;
+                        }
+                        reader.readAsDataURL(file);
+                    }
+                });
+            },
+            preConfirm: () => {
+                const imageFile = document.getElementById('swal-image').files[0];
+                const updatedData = {
+                    Name: document.getElementById('swal-name').value,
+                    Nickname: document.getElementById('swal-nickname').value
+                };
 
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    Swal.fire({
-                        title: 'Crop Image',
-                        html: `<div class="img-container-cropper"><img id="image-to-crop" src="${event.target.result}"></div>`,
-                        confirmButtonText: 'Crop & Use Image',
-                        showCancelButton: true,
-                        customClass: { popup: 'cropper-popup' },
-                        didOpen: () => {
-                            const image = document.getElementById('image-to-crop');
-                            const cropper = new Cropper(image, {
-                                aspectRatio: 1 / 1, // Square crop
-                                viewMode: 1,
-                                background: false
-                            });
-                            
-                            // Make confirm button work for cropping
-                            Swal.getConfirmButton().onclick = () => {
-                                const canvas = cropper.getCroppedCanvas({ width: 512, height: 512 });
-                                croppedImageData = canvas.toDataURL('image/jpeg');
-                                document.getElementById('swal-image-preview').src = croppedImageData;
-                                Swal.close(); // Close cropper modal
+                // Collect updated scores
+                Object.keys(scoreData).forEach(topic => {
+                    updatedData[topic] = document.getElementById(`swal-score-${topic.replace(/\s+/g, '-')}`).value;
+                });
+                
+                if (imageFile) {
+                    return new Promise(resolve => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const fileData = {
+                                name: imageFile.name,
+                                mimeType: imageFile.type,
+                                base64: e.target.result.split(',')[1] // Get base64 part
                             };
-                        }
+                            resolve({ updatedData, fileData });
+                        };
+                        reader.readAsDataURL(imageFile);
                     });
-                };
-                reader.readAsDataURL(file);
-            });
-            // ## END CROPPER LOGIC ##
-        },
-        preConfirm: () => {
-            const updatedData = {
-                Name: document.getElementById('swal-name').value,
-                Nickname: document.getElementById('swal-nickname').value
-            };
-
-            Object.keys(scoreData).forEach(topic => {
-                updatedData[topic] = document.getElementById(`swal-score-${topic.replace(/\s+/g, '-')}`).value;
-            });
-            
-            // ## MODIFIED PART: Check for cropped image data ##
-            let fileData = null;
-            if (croppedImageData) {
-                fileData = {
-                    name: 'cropped_image.jpg',
-                    mimeType: 'image/jpeg',
-                    base64: croppedImageData.split(',')[1] // Get base64 part only
-                };
-            }
-            
-            return { updatedData, fileData };
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const { updatedData, fileData } = result.value;
-            showLoader();
-
-            const saveUpdates = (newImageId) => {
-                if (newImageId) {
-                    updatedData.Image = newImageId;
                 }
-                google.script.run
-                    .withSuccessHandler(response => {
-                        hideLoader();
-                        if (response.success) {
-                            Swal.fire('Saved!', 'Student data has been updated.', 'success');
-                            // Refresh student list
-                            google.script.run.withSuccessHandler(displayStudents).getStudentData(currentSheetName);
-                        } else {
-                            handleError({ message: response.message });
-                        }
-                    })
-                    .withFailureHandler(handleError)
-                    .updateStudentData(currentSheetName, fullStudentData.ID, updatedData);
-            };
-
-            if (fileData) {
-                google.script.run
-                    .withSuccessHandler(response => {
-                        if (response.success) {
-                            saveUpdates(response.fileId);
-                        } else {
-                            handleError({ message: response.message });
-                        }
-                    })
-                    .withFailureHandler(handleError)
-                    .uploadImage(fileData, fullStudentData.Image);
-            } else {
-                saveUpdates(null); // No new image
+                
+                return { updatedData, fileData: null };
             }
-        }
-    });
-}
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const { updatedData, fileData } = result.value;
+                showLoader();
+
+                const saveUpdates = (newImageId) => {
+                    if(newImageId) {
+                        updatedData.Image = newImageId;
+                    }
+                    google.script.run
+                        .withSuccessHandler(response => {
+                            hideLoader();
+                            if (response.success) {
+                                Swal.fire('Saved!', 'Student data has been updated.', 'success');
+                                // Refresh student list
+                                google.script.run.withSuccessHandler(displayStudents).getStudentData(currentSheetName);
+                            } else {
+                                handleError({ message: response.message });
+                            }
+                        })
+                        .withFailureHandler(handleError)
+                        .updateStudentData(currentSheetName, fullStudentData.ID, updatedData);
+                };
+
+                if (fileData) {
+                    google.script.run
+                        .withSuccessHandler(response => {
+                            if (response.success) {
+                                saveUpdates(response.fileId);
+                            } else {
+                                handleError({ message: response.message });
+                            }
+                        })
+                        .withFailureHandler(handleError)
+                        .uploadImage(fileData, fullStudentData.Image);
+                } else {
+                    saveUpdates(null); // No new image
+                }
+            }
+        });
+    }
 
   // ===============================================================
   //                      UTILITY & ERROR HANDLING
