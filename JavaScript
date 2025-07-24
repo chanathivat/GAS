@@ -369,122 +369,168 @@
   // Create getSingleStudentDataForAdmin in Code.gs first. Let's assume it exists and returns {success, studentData, headers}.
   // For the purpose of this demonstration, let's just use the data we have and add a fetch for scores.
   
-   function showAdminEditModal(fullStudentData, headers) {
-        const scoreData = getScoreData(fullStudentData, headers);
-        const nonScoreFields = ['No', 'ID', 'Name', 'Nickname', 'Image', 'Password'];
+async function showAdminEditModal(fullStudentData, headers) {
+    const scoreData = getScoreData(fullStudentData, headers);
+    let cropper; // <<-- **[1] ประกาศ cropper ที่นี่**
 
-        let scoreInputs = Object.entries(scoreData).map(([topic, score]) => `
-          <div class="swal-form-group">
-            <label for="swal-score-${topic.replace(/\s+/g, '-')}">${topic}</label>
-            <input id="swal-score-${topic.replace(/\s+/g, '-')}" class="swal2-input" type="number" value="${score}">
-          </div>
-        `).join('');
+    let scoreInputs = Object.entries(scoreData).map(([topic, score]) => `
+      <div class="swal-form-group">
+        <label for="swal-score-${topic.replace(/\s+/g, '-')}">${topic}</label>
+        <input id="swal-score-${topic.replace(/\s+/g, '-')}" class="swal2-input" type="number" value="${score}">
+      </div>
+    `).join('');
 
-        Swal.fire({
-            title: `Edit ${fullStudentData.Name}`,
-            html: `
-                <img id="swal-image-preview" src="${fullStudentData.Image ? G_DRIVE_URL_PREFIX + fullStudentData.Image : PLACEHOLDER_IMG_URL}" alt="Profile Preview">
-                <div class="swal-form-group">
-                  <label for="swal-image">Change Image</label>
-                  <input id="swal-image" class="swal2-input" type="file" accept="image/*">
-                </div>
-                <div class="swal-form-group">
-                  <label for="swal-name">Name</label>
-                  <input id="swal-name" class="swal2-input" value="${fullStudentData.Name}">
-                </div>
-                <div class="swal-form-group">
-                  <label for="swal-nickname">Nickname</label>
-                  <input id="swal-nickname" class="swal2-input" value="${fullStudentData.Nickname}">
-                </div>
-                <hr>
-                <h4>Scores</h4>
-                ${scoreInputs}
-            `,
-            confirmButtonText: 'Save Changes',
-            showCancelButton: true,
-            focusConfirm: false,
-            didOpen: () => {
-                document.getElementById('swal-image').addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            document.getElementById('swal-image-preview').src = e.target.result;
-                        }
-                        reader.readAsDataURL(file);
-                    }
-                });
-            },
-            preConfirm: () => {
-                const imageFile = document.getElementById('swal-image').files[0];
+    Swal.fire({
+        title: `Edit ${fullStudentData.Name}`,
+        html: `
+            <div class="swal-form-group">
+              <label>Profile Image</label>
+              <div id="cropper-container" style="width: 100%; height: 300px; margin-top: 1rem;">
+                 <img id="swal-image-preview" src="${fullStudentData.Image ? G_DRIVE_URL_PREFIX + fullStudentData.Image : PLACEHOLDER_IMG_URL}" alt="Profile Preview" style="max-width: 100%;">
+              </div>
+              <label for="swal-image" style="margin-top: 1rem; display: block; text-align: left;">Change Image</label>
+              <input id="swal-image" class="swal2-input" type="file" accept="image/*">
+            </div>
+            <div class="swal-form-group">
+              <label for="swal-name">Name</label>
+              <input id="swal-name" class="swal2-input" value="${fullStudentData.Name}">
+            </div>
+            <div class="swal-form-group">
+              <label for="swal-nickname">Nickname</label>
+              <input id="swal-nickname" class="swal2-input" value="${fullStudentData.Nickname}">
+            </div>
+            <hr>
+            <h4>Scores</h4>
+            ${scoreInputs}
+        `,
+        confirmButtonText: 'Save Changes',
+        showCancelButton: true,
+        focusConfirm: false,
+        didOpen: () => {
+            const image = document.getElementById('swal-image-preview');
+            const input = document.getElementById('swal-image');
+            
+            // **[2] กำหนดค่าให้ cropper ที่ประกาศไว้ด้านนอก**
+            cropper = new Cropper(image, {
+                aspectRatio: 1,
+                viewMode: 1,
+                background: false,
+                autoCropArea: 0.9,
+            });
+
+            input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        cropper.replace(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            // **[3] ไม่ต้องใช้ Swal.setData แล้ว**
+        },
+        preConfirm: () => {
+            try {
+                // **[4] เรียกใช้ cropper จาก scope ด้านนอกได้โดยตรง**
+                if (!cropper) {
+                     Swal.showValidationMessage('Cropper is not initialized.');
+                     return false;
+                }
+
+                const imageInput = document.getElementById('swal-image');
+                let fileData = null;
+
                 const updatedData = {
                     Name: document.getElementById('swal-name').value,
                     Nickname: document.getElementById('swal-nickname').value
                 };
-
-                // Collect updated scores
                 Object.keys(scoreData).forEach(topic => {
                     updatedData[topic] = document.getElementById(`swal-score-${topic.replace(/\s+/g, '-')}`).value;
                 });
-                
-                if (imageFile) {
-                    return new Promise(resolve => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            const fileData = {
-                                name: imageFile.name,
-                                mimeType: imageFile.type,
-                                base64: e.target.result.split(',')[1] // Get base64 part
-                            };
-                            resolve({ updatedData, fileData });
-                        };
-                        reader.readAsDataURL(imageFile);
+
+                if (imageInput.files && imageInput.files[0]) {
+                    const croppedCanvas = cropper.getCroppedCanvas({
+                        width: 300,
+                        height: 300,
+                        imageSmoothingQuality: 'high',
                     });
+
+                    if (!croppedCanvas) {
+                        Swal.showValidationMessage('Could not get the cropped image. Please try again.');
+                        return false;
+                    }
+
+                    fileData = {
+                        name: `profile_${fullStudentData.ID}.png`,
+                        mimeType: 'image/png',
+                        base64: croppedCanvas.toDataURL('image/png').split(',')[1]
+                    };
                 }
-                
-                return { updatedData, fileData: null };
+
+                return { updatedData, fileData };
+
+            } catch (error) {
+                Swal.showValidationMessage(`An error occurred during data preparation: ${error.message}`);
+                return false;
             }
-        }).then((result) => {
-            if (result.isConfirmed) {
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            try {
                 const { updatedData, fileData } = result.value;
                 showLoader();
 
                 const saveUpdates = (newImageId) => {
-                    if(newImageId) {
+                    if (newImageId) {
                         updatedData.Image = newImageId;
                     }
                     google.script.run
                         .withSuccessHandler(response => {
                             hideLoader();
                             if (response.success) {
-                                Swal.fire('Saved!', 'Student data has been updated.', 'success');
-                                // Refresh student list
-                                google.script.run.withSuccessHandler(displayStudents).getStudentData(currentSheetName);
+                                Swal.fire('Saved!', 'Student data has been updated.', 'success')
+                                .then(() => {
+                                    if (currentSheetName) {
+                                        google.script.run.withSuccessHandler(displayStudents).getStudentData(currentSheetName);
+                                    }
+                                });
                             } else {
-                                handleError({ message: response.message });
+                                handleError({ message: response.message || "Failed to update student data." });
                             }
                         })
-                        .withFailureHandler(handleError)
+                        .withFailureHandler(error => {
+                            hideLoader();
+                            handleError(error);
+                        })
                         .updateStudentData(currentSheetName, fullStudentData.ID, updatedData);
                 };
 
                 if (fileData) {
                     google.script.run
                         .withSuccessHandler(response => {
-                            if (response.success) {
+                            if (response.success && response.fileId) {
                                 saveUpdates(response.fileId);
                             } else {
-                                handleError({ message: response.message });
+                                hideLoader();
+                                handleError({ message: response.message || "Image upload failed." });
                             }
                         })
-                        .withFailureHandler(handleError)
+                        .withFailureHandler(error => {
+                            hideLoader();
+                            handleError(error);
+                        })
                         .uploadImage(fileData, fullStudentData.Image);
                 } else {
-                    saveUpdates(null); // No new image
+                    saveUpdates(null);
                 }
+
+            } catch (error) {
+                handleError({ message: `An unexpected error occurred: ${error.message}` });
             }
-        });
-    }
+        }
+    });
+}
 
   // ===============================================================
   //                      UTILITY & ERROR HANDLING
